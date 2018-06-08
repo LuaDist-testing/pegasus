@@ -1,18 +1,10 @@
--- This file was automatically generated for the LuaDist project.
-
 package = 'pegasus'
 version = '0.9.3-1'
 
--- LuaDist source
 source = {
-  tag = "0.9.3-1",
-  url = "git://github.com/LuaDist-testing/pegasus.git"
+  url = 'git://github.com/evandrolg/pegasus.lua.git',
+  tag = 'v0.9.3'
 }
--- Original source
--- source = {
---   url = 'git://github.com/evandrolg/pegasus.lua.git',
---   tag = 'v0.9.3'
--- }
 
 description = {
   summary = 'Pegasus.lua is a http server to work with web applications written in Lua language.',

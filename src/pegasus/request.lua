@@ -1,8 +1,8 @@
 local Request = {}
+Request.__index = Request
 
 function Request:new(port, client)
   local newObj = {}
-  self.__index = self
   newObj.client = client
   newObj.port = port
   newObj.ip = client:getpeername()
@@ -20,8 +20,8 @@ function Request:new(port, client)
   return setmetatable(newObj, self)
 end
 
-Request.PATTERN_METHOD = '^(.+)%s'
-Request.PATTERN_PATH = '(.*)%s'
+Request.PATTERN_METHOD = '^(.-)%s'
+Request.PATTERN_PATH = '(%S+)%s*'
 Request.PATTERN_PROTOCOL = '(HTTP%/%d%.%d)'
 Request.PATTERN_REQUEST = (Request.PATTERN_METHOD ..
 Request.PATTERN_PATH ..Request.PATTERN_PROTOCOL)
@@ -40,18 +40,31 @@ function Request:parseFirstLine()
 
   -- Parse firstline http: METHOD PATH PROTOCOL,
   -- GET Makefile HTTP/1.1
-  local method, path, protocol = string.match(self.firstLine,
+  local method, path, protocol = string.match(self.firstLine, -- luacheck: ignore protocol
                                  Request.PATTERN_REQUEST)
-  local filename, querystring = string.match(path, '^([^#?]+)[#|?]?(.*)')
 
-  self._path = filename
+  if not method then
+    --! @todo close client socket immediately
+    return
+  end
+
+  local filename, querystring
+  if #path > 0 then
+    filename, querystring = string.match(path, '^([^#?]+)[#|?]?(.*)')
+  else
+    filename = ''
+  end
+
+  if not filename then return end
+
+  self._path = filename or path
   self._query_string = querystring
   self._method = method
 end
 
 Request.PATTERN_QUERY_STRING = '([^=]*)=([^&]*)&?'
 
-function Request:parseURLEncoded(value, _table)
+function Request:parseURLEncoded(value, _table) -- luacheck: ignore self
   --value exists and _table is empty
   if value and next(_table) == nil then
     for k, v in  string.gmatch(value, Request.PATTERN_QUERY_STRING) do
@@ -121,8 +134,7 @@ function Request:receiveBody(size)
 
   local data, err, partial = self.client:receive(fetch)
 
-  if err =='timeout' then
-    err = nil
+  if err == 'timeout' then
     data = partial
   end
 
