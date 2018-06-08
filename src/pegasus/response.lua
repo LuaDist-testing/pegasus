@@ -13,8 +13,8 @@ local function try(what)
   return result
 end
 
-function dec2hex(dec)
-local b,k,out,i,d=16,"0123456789ABCDEF","",0
+local function dec2hex(dec)
+  local b,k,out,i,d=16,"0123456789ABCDEF","",0
   while dec > 0 do
     i=i+1
     local m = dec - math.floor(dec/b)*b
@@ -94,9 +94,9 @@ function Response:new(client, writeHandler)
   newObj.headers = {}
   newObj.status = 200
   newObj.filename = ''
-  self.closed = false
-  self.client = client
-  self.writeHandler = writeHandler
+  newObj.closed = false
+  newObj.client = client
+  newObj.writeHandler = writeHandler
 
   return setmetatable(newObj, self)
 end
@@ -139,8 +139,8 @@ end
 
 function Response:writeDefaultErrorMessage(statusCode)
   self:statusCode(statusCode)
-  content = string.gsub(DEFAULT_ERROR_MESSAGE, '{{ STATUS_CODE }}', statusCode)
-  self:write(string.gsub(content, '{{ STATUS_TEXT }}', STATUS_TEXT[statusCode]))
+  local content = string.gsub(DEFAULT_ERROR_MESSAGE, '{{ STATUS_CODE }}', statusCode)
+  self:write(string.gsub(content, '{{ STATUS_TEXT }}', STATUS_TEXT[statusCode]), false)
   return self
 end
 
@@ -165,7 +165,7 @@ function Response:sendHeaders(stayOpen, body)
     self:addHeader('Content-Length', body:len())
   end
 
-  self:addHeader('Date', os.date('!%a, %d %b %Y %T GMT', os.time()))
+  self:addHeader('Date', os.date('!%a, %d %b %Y %H:%M:%S GMT', os.time()))
 
   if not self.headers['Content-Type'] then
     self:addHeader('Content-Type', 'text/html')
@@ -199,7 +199,7 @@ end
 function Response:writeFile(file, contentType)
   self:contentType(contentType)
   self:statusCode(200)
-  local value = file:read('*all')
+  local value = file:read('*a')
   self:write(value)
 
   return self
