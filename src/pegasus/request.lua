@@ -28,7 +28,7 @@ function Request:parseFirstLine()
   if (self.firstLine ~= nil) then
     return
   end
-  
+
   local status, partial
   self.firstLine, status, partial = self.client:receive()
 
@@ -40,7 +40,7 @@ function Request:parseFirstLine()
   -- GET Makefile HTTP/1.1
   local method, path, protocol = string.match(self.firstLine,
                                  Request.PATTERN_REQUEST)
-  local filename, querystring = string.match(path, '^([^#?]+)(.*)')
+  local filename, querystring = string.match(path, '^([^#?]+)[#|?]?(.*)')
 
   self._path = filename
   self._query_string = querystring
@@ -66,7 +66,7 @@ function Request:params()
 end
 
 function Request:post()
-  if self:method() ~= "POST" then return nil end
+  if self:method() ~= 'POST' then return nil end
   local data = self:receiveBody()
   return self:parseURLEncoded(data, {})
 end
@@ -81,7 +81,7 @@ function Request:method()
   return self._method
 end
 
-Request.PATTERN_HEADER = '([%w-]+): ([%w %w]+)'
+Request.PATTERN_HEADER = '([%w-]+): ([%w %w]+=?)'
 
 function Request:headers()
   if self._headers_parsed then
@@ -89,6 +89,7 @@ function Request:headers()
   end
 
   self:parseFirstLine()
+
   local data = self.client:receive()
 
   while (data ~= nil) and (data:len() > 0) do
@@ -103,19 +104,19 @@ function Request:headers()
 
   self._headers_parsed = true
   self._content_length = tonumber(self._headers["Content-Length"] or 0)
-  
+
   return self._headers
 end
 
 function Request:receiveBody(size)
   size = size or self._content_length
-  
+
   -- do we have content?
   if self._content_done >= self._content_length then return false end
-  
+
   -- fetch in chunks
   local fetch = math.min(self._content_length-self._content_done, size)
-  
+
   local data, err, partial = self.client:receive(fetch)
 
   if err =='timeout' then
@@ -124,7 +125,7 @@ function Request:receiveBody(size)
   end
 
   self._content_done = self._content_done + #data
-  
+
   return data
 end
 

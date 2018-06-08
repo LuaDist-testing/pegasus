@@ -103,5 +103,14 @@ describe('require', function()
       assert.equal('A', result['a'])
       assert.equal('B', result['b'])
     end)
+
+    it('should find value with = signal', function()
+      local headers = { 'GET /Makefile?a=b= HTTP/1.1', 'a: A=', nil }
+      local request = getInstance(headers)
+      local result = request:headers()
+
+      assert.equal(type(result), 'table')
+      assert.equal(length(result), 1)
+    end)
   end)
 end)

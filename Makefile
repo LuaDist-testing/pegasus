@@ -1,7 +1,6 @@
 .SILENT:
 
 run_example:
-	luarocks make
 	lua example/app.lua
 
 test:
@@ -12,3 +11,4 @@ install_dependencies:
 	luarocks install luasocket
 	luarocks install busted
 	luarocks install luacov
+	luarocks install luafilesystem

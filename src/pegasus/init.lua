@@ -5,17 +5,14 @@ local Handler = require 'pegasus.handler'
 local Pegasus = {}
 
 function Pegasus:new(params)
+  params = params or {}
   local server = {}
   self.__index = self
 
   local port, location
-  if type(params) == 'table' then
-    port = params.port
-    location = params.location
-  end
-
-  server.port = port or '9090'
-  server.location = location or ''
+  server.port = params.port or '9090'
+  server.location = params.location or ''
+  server.plugins = params.plugins or {}
 
   return setmetatable(server, self)
 end
@@ -29,7 +26,7 @@ function Pegasus:start(callback)
   while 1 do
     local client = server:accept()
     client:settimeout(1, 'b')
-    handler:processRequest(client)
+    handler:processRequest(client, self.plugins)
     client:close()
   end
 end

@@ -5,40 +5,30 @@ local Response = require 'pegasus.response'
 local Handler = {}
 
 function Handler:new(callback, location)
-  local hdlr = {}
+  local handler = {}
   self.__index = self
-  hdlr.callback = callback
-  hdlr.location = location or ''
-  
-  return setmetatable(hdlr, self)
+  handler.callback = callback
+  handler.location = location or ''
+
+  return setmetatable(handler, self)
 end
 
-function Handler:processRequest(client)
+function Handler:processRequest(client, plugins)
   local request = Request:new(client)
-  local response =  Response:new(client)
+  local response =  Response:new()
 
   if request:path() then
-    response:processes(request, self.location)
+    response:_process(request, self.location)
   end
 
   if self.callback then
-    self:execute(request, response, client)
-  else
-    client:send(response.body)
+    response:statusCode(200)
+    response.headers = {}
+    response:addHeader('Content-Type', 'text/html')
+    self.callback(self:makeRequest(request), response)
   end
-end
 
-Handler.wasFinishCalled = false
-
-function Handler:execute(request, response, client)
-  local req = self:makeRequest(request)
-  local rep = self:makeResponse(response, client)
-
-  self.callback(req, rep)
-
-  if not self.wasFinishCalled then
-    client:send(response.body)
-  end
+  client:send(response.content)
 end
 
 function Handler:makeRequest(request)
@@ -47,31 +37,8 @@ function Handler:makeRequest(request)
     headers = request:headers(),
     method = request:method(),
     querystring = request:params(),
-    post = request:post()
+    post = request:post() or {}
   }
-end
-
-function Handler:makeResponse(response, client)
-  local rep
-  rep = {
-    statusCode = nil,
-    head = nil,
-
-    writeHead = function(statusCode)
-      rep.head = response:makeHead(statusCode)
-      rep.statusCode = statusCode
-
-      return rep
-    end,
-
-    finish = function(body)
-      local body = response:createBody(rep.head, body, rep.statusCode)
-      client:send(body)
-      self.wasFinishCalled = true
-    end
-  }
-
-  return rep
 end
 
 return Handler

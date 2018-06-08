@@ -1,6 +1,6 @@
-local File = {}
-
 local lfs = require 'lfs'
+
+local File = {}
 
 function File:isDir(path)
   path = path:match("(.-)(%/*)$")  -- drop a trailing /
@@ -17,6 +17,12 @@ function File:exists(path)
   else
     return false
   end
+end
+
+function File:size(path)
+  path = path:match("(.-)(%/*)$")  -- drop a trailing /
+  local size = lfs.attributes(path, "size")
+  return size
 end
 
 function File:pathJoin(path, file)
