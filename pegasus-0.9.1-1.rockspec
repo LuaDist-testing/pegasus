@@ -1,17 +1,17 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = 'pegasus'
-version = '0.9.0-1'
+version = '0.9.1-1'
 
 -- LuaDist source
 source = {
-  tag = "0.9.0-1",
+  tag = "0.9.1-1",
   url = "git://github.com/LuaDist-testing/pegasus.git"
 }
 -- Original source
 -- source = {
 --   url = 'git://github.com/evandrolg/pegasus.lua.git',
---   tag = 'v0.9'
+--   tag = 'v0.9.1'
 -- }
 
 description = {
@@ -26,6 +26,7 @@ dependencies = {
   "mimetypes >= 1.0.0-1",
   "luasocket >= 0.1.0-0",
   "luafilesystem >= 1.6",
+  "lzlib >= 0.4.1.53-1",
 }
 
 build = {
@@ -35,6 +36,7 @@ build = {
     ['pegasus.handler']  = 'src/pegasus/handler.lua',
     ['pegasus.request']  = 'src/pegasus/request.lua',
     ['pegasus.response'] = 'src/pegasus/response.lua',
-    ['pegasus.file']     = 'src/pegasus/file.lua'
+    ['pegasus.file']     = 'src/pegasus/file.lua',
+    ['pegasus.compress'] = 'src/pegasus/compress.lua'
   }
 }

@@ -1,7 +1,3 @@
-local mimetypes = require 'mimetypes'
-local File = require 'pegasus.file'
-
-
 -- solution by @cwarden - https://gist.github.com/cwarden/1207556
 local function catch(what)
    return what[1]
@@ -17,17 +13,15 @@ local function try(what)
   return result
 end
 
-function DEC_HEX(IN)
-local B,K,OUT,I,D=16,"0123456789ABCDEF", "", 0
-
-  while IN>0 do
-    I=I+1
-    local m = IN- math.floor(IN/B)*B
-    IN,D=math.floor(IN/B), m + 1
-    OUT=string.sub(K,D,D)..OUT
+function dec2hex(dec)
+local b,k,out,i,d=16,"0123456789ABCDEF","",0
+  while dec > 0 do
+    i=i+1
+    local m = dec - math.floor(dec/b)*b
+    dec, d = math.floor(dec/b), m + 1
+    out = string.sub(k,d,d)..out
   end
-
-  return OUT
+  return out
 end
 
 local STATUS_TEXT = {
@@ -91,10 +85,9 @@ local DEFAULT_ERROR_MESSAGE = [[
 
 local Response = {}
 
-function Response:new(client)
+function Response:new(client, writeHandler)
   local newObj = {}
   self.__index = self
-  newObj.body = ''
   newObj.headers_sended = false
   newObj.templateFirstLine = 'HTTP/1.1 {{ STATUS_CODE }} {{ STATUS_TEXT }}\r\n'
   newObj.headFirstLine = ''
@@ -103,28 +96,11 @@ function Response:new(client)
   newObj.filename = ''
   self.closed = false
   self.client = client
+  self.writeHandler = writeHandler
 
   return setmetatable(newObj, self)
 end
 
-function Response:_process(request, location)
-  self.filename = '.' .. location .. request:path()
-  local body = File:open(self.filename)
-  if not body then
-    self:_prepareWrite(body, 404)
-    return
-  end
-
-  try {
-    function()
-      self:_prepareWrite(body, 200)
-    end
-  } catch {
-    function(error)
-      self:_prepareWrite(body, 500)
-    end
-  }
-end
 
 function Response:addHeader(key, value)
   self.headers[key] = value
@@ -148,7 +124,6 @@ function Response:statusCode(statusCode, statusText)
   self.status = statusCode
   self.headFirstLine = string.gsub(self.templateFirstLine, '{{ STATUS_CODE }}', statusCode)
   self.headFirstLine = string.gsub(self.headFirstLine, '{{ STATUS_TEXT }}', statusText or STATUS_TEXT[statusCode])
-
   return self
 end
 
@@ -162,42 +137,57 @@ function Response:_getHeaders()
   return headers
 end
 
-function Response:_prepareWrite(body, statusCode)
-  self:statusCode(statusCode or 200)
-  local content = body
-
-  if statusCode >= 400 then
-    content = string.gsub(DEFAULT_ERROR_MESSAGE, '{{ STATUS_CODE }}', statusCode)
-    content = string.gsub(content, '{{ STATUS_TEXT }}', STATUS_TEXT[statusCode])
-  end
-
-  self:write(content)
-end
-
-function Response:_setDefaultHeaders()
-  if self.closed then
-    self:addHeader('Content-Length', self.body:len() )
-  else
-    self:addHeader('Transfer-Encoding', 'chunked')
-  end
-
-  if not self.headers['Content-Type'] then
-    self:addHeader('Content-Type', mimetypes.guess(self.filename or '') or 'text/html')
-  end
+function Response:writeDefaultErrorMessage(statusCode)
+  self:statusCode(statusCode)
+  content = string.gsub(DEFAULT_ERROR_MESSAGE, '{{ STATUS_CODE }}', statusCode)
+  self:write(string.gsub(content, '{{ STATUS_TEXT }}', STATUS_TEXT[statusCode]))
+  return self
 end
 
 function Response:close()
   self.client:send('0\r\n\r\n')
+  self.close = true
 end
 
-function Response:write(body, stayopen)
-  self.body = body
-  self.closed = not (stayopen or false)
-  self:_setDefaultHeaders()
-  local cont = self:_content()
-  self.client:send(cont)
-  self.body = ''
+function Response:sendOnlyHeaders()
+  self:sendHeaders(false, '')
+  self:write('\r\n')
+end
+
+function Response:sendHeaders(stayOpen, body)
+  if self.headers_sended then
+    return self
+  end
+
+  if stayOpen then
+    self:addHeader('Transfer-Encoding', 'chunked')
+  elseif type(body) == 'string' then
+    self:addHeader('Content-Length', body:len())
+  end
+
+  self:addHeader('Date', os.date('!%a, %d %b %Y %T GMT', os.time()))
+
+  if not self.headers['Content-Type'] then
+    self:addHeader('Content-Type', 'text/html')
+  end
+
+  self.client:send(self.headFirstLine .. self:_getHeaders())
+  self.client:send('\r\n')
   self.headers_sended = true
+
+  return self
+end
+
+function Response:write(body, stayOpen)
+  body = self.writeHandler:processBodyData(body, stayOpen, self)
+  self:sendHeaders(stayOpen, body)
+
+  self.closed = not (stayOpen or false)
+  if self.closed then
+    self.client:send(body)
+  else
+    self.client:send(dec2hex(body:len())..'\r\n'..body..'\r\n')
+  end
 
   if self.closed then
     self.client:close()
@@ -206,25 +196,9 @@ function Response:write(body, stayopen)
   return self
 end
 
-function Response:_content()
-  if self.headers_sended then
-    return  DEC_HEX(self.body:len())..'\r\n'..self.body..'\r\n'
-  else
-    local head = self:_getHeaders()
-    result = self.headFirstLine .. head
-
-    if self.closed then
-      result = result ..'\r\n' .. self.body
-    else
-      result = result ..'\r\n'.. DEC_HEX(self.body:len())..'\r\n'..self.body..'\r\n'
-    end
-   
-   return result
-  end
-end
-
-function Response:writeFile(file)
-  local file = io.open(file, 'r')
+function Response:writeFile(file, contentType)
+  self:contentType(contentType)
+  self:statusCode(200)
   local value = file:read('*all')
   self:write(value)
 

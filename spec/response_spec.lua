@@ -1,5 +1,5 @@
 local Response = require 'pegasus.response'
-
+local Handler = require 'pegasus.handler'
 
 describe('response', function()
   describe('instance', function()
@@ -38,49 +38,21 @@ describe('response', function()
     end)
   end)
 
-  describe('request process', function()
-    local verifyProcess = function(path, location, statusCode)
-      local Request = {
-        path = function()
-          return path
-        end
-      }
-
-      local client = {
-        send = function() end,
-        close = function() end
-      }
-
-      local response = Response:new(client)
-      response:_process(Request, location)
-
-      assert.equal(statusCode, response.status)
-    end
-
-    it('should set status code as 200', function()
-      verifyProcess('index.html', '/spec/fixtures/', 200)
-    end)
-
-    it('should set status code as 404', function()
-      verifyProcess('', '', 404)
-    end)
-
-    it('should set status code as 500', function()
-    end)
-  end)
-
-  describe('prepare write', function()
+  describe('write', function()
     local verifyOutput = function(statusCode, expectedBody)
       local client = {
         send = function(self, content)
-          local isOk = not not string.match(content, expectedBody)
-          assert.is_true(isOk)
+          self.content = self.content or ''
+          self.content = self.content .. content;
         end,
         close = function () end
       }
 
-      local response = Response:new(client)
-      response:_prepareWrite(expectedBody, statusCode)
+      local response = Response:new(client, Handler)
+      response:statusCode(statusCode)
+      response:write(expectedBody)
+      local isOk = not not string.match(client.content, expectedBody)
+      assert.is_true(isOk)
     end
 
     local verifyErrorOutput = function(statusCode)
@@ -148,56 +120,51 @@ describe('response', function()
   end)
 
   describe('set default headers', function()
-    it('should define a default value to content-type and content-length', function()
-      local response = Response:new()
-      response.closed = true
-      response:_setDefaultHeaders()
+    local client = {
+      send = function(self, content)
+        self.content = self.content or ''
+        self.content = self.content .. content
+      end,
+      close = function () end
+    }
 
+    it('should define a default value to content-type and content-length', function()
+      local response = Response:new(client, Handler)
+      response:write('')
       assert.equal('text/html', response.headers['Content-Type'])
       assert.equal(0, response.headers['Content-Length'])
     end)
 
     it('should keep value previously set', function()
-      local response = Response:new()
+      local response = Response:new(client)
       response:addHeader('Content-Type', 'application/javascript')
       response:addHeader('Content-Length', 100)
-      response:_setDefaultHeaders()
 
       assert.equal('application/javascript', response.headers['Content-Type'])
       assert.equal(100, response.headers['Content-Length'])
     end)
 
-    it('should get values the correct file values', function()
-      local response = Response:new({send = function () end, close = function() end})
-      local request = {
-        path = function()
-          return '/spec/fixtures/index.html'
-        end
-      }
-      response:_process(request, '')
-
-      assert.equal(16, response.headers['Content-Length'])
-      assert.equal('text/html', response.headers['Content-Type'])
-    end)
   end)
 
   describe('write', function()
     local verifyClient = function(expectedBody, body, header)
       local client = {
-        send = function(obj, content)
-          for key, value in pairs(header) do
-            assert.is_true(not not string.match(content, value))
-          end
-
-          local isBodyCorrect = not not string.match(content, expectedBody)
-          assert.is_true(isBodyCorrect)
+        send = function(self, content)
+          self.content = self.content or ''
+          self.content = self.content .. content
         end,
         close = function () end
       }
 
-      local response = Response:new(client)
+      local response = Response:new(client, Handler)
       response:addHeaders(header)
       response:write(body)
+      for key, value in pairs(header) do
+        assert.is_true(not not string.match(client.content, value))
+      end
+
+      local isBodyCorrect = not not string.match(client.content, expectedBody)
+      assert.is_true(isBodyCorrect)
     end
 
     it('should call send method passing body', function()
