@@ -1,17 +1,17 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = 'pegasus'
-version = '0.9.1-1'
+version = '0.9.2-1'
 
 -- LuaDist source
 source = {
-  tag = "0.9.1-1",
+  tag = "0.9.2-1",
   url = "git://github.com/LuaDist-testing/pegasus.git"
 }
 -- Original source
 -- source = {
 --   url = 'git://github.com/evandrolg/pegasus.lua.git',
---   tag = 'v0.9.1'
+--   tag = 'v0.9.2'
 -- }
 
 description = {

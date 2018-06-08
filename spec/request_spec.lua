@@ -1,6 +1,5 @@
 local Request = require 'pegasus.request'
 
-
 describe('require', function()
   function getInstance(headers)
     local err = {nil, nil, nil, nil, nil, 'error'}
@@ -15,10 +14,12 @@ describe('require', function()
         end
 
         return nil
-      end
+      end,
+
+      getpeername = function(self) end
     }
 
-    return Request:new(param)
+    return Request:new(8080, param)
   end
 
   function length(dict)
@@ -112,5 +113,27 @@ describe('require', function()
       assert.equal(type(result), 'table')
       assert.equal(length(result), 1)
     end)
+  end)
+
+  describe('ip', function()
+    it('should return a ip', function()
+      local request = Request:new(8080, {
+        getpeername = function(self)
+          return '192.30.252.129'
+        end
+      })
+
+      assert.equal(request.ip, '192.30.252.129')
+    end)
+  end)
+
+  describe('port', function()
+      local request = Request:new(8080, {
+        getpeername = function(self)
+          return '192.30.252.129'
+        end
+      })
+
+      assert.equal(request.port, 8080)
   end)
 end)

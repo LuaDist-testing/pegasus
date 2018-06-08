@@ -1,9 +1,11 @@
 local Request = {}
 
-function Request:new(client)
+function Request:new(port, client)
   local newObj = {}
   self.__index = self
   newObj.client = client
+  newObj.port = port
+  newObj.ip = client:getpeername()
   newObj.firstLine = nil
   newObj._method = nil
   newObj._path = nil
@@ -18,9 +20,9 @@ function Request:new(client)
   return setmetatable(newObj, self)
 end
 
-Request.PATTERN_METHOD = '^(.*)%s'
+Request.PATTERN_METHOD = '^(.+)%s'
 Request.PATTERN_PATH = '(.*)%s'
-Request.PATTERN_PROTOCOL = '(HTTP%/[0-9]%.[0-9])'
+Request.PATTERN_PROTOCOL = '(HTTP%/%d%.%d)'
 Request.PATTERN_REQUEST = (Request.PATTERN_METHOD ..
 Request.PATTERN_PATH ..Request.PATTERN_PROTOCOL)
 
@@ -32,7 +34,7 @@ function Request:parseFirstLine()
   local status, partial
   self.firstLine, status, partial = self.client:receive()
 
-  if (self.firstLine == nil and status == 'timeout' and partial == '' or status == 'closed') then
+  if (self.firstLine == nil or status == 'timeout' or partial == '' or status == 'closed') then
     return
   end
 
